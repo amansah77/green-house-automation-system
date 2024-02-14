@@ -1,0 +1,681 @@
+//arduino program
+
+#define AOUT_PIN A0 // Arduino pin that connects to AOUT pin of moisture sensor
+#define motor 8
+void setup() {
+  pinMode(3,INPUT);
+  pinMode(12,OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+if (digitalRead(3)==0) {
+  Serial.println("Fire detecteted");
+}
+
+  int value = analogRead(AOUT_PIN); // read the analog value from sensor
+
+  Serial.print("Moisture: ");
+  Serial.println(value);
+  if(value>850){
+digitalWrite(12,HIGH);
+  }
+  if(value<850){
+digitalWrite(12,LOW);
+  }
+}
+
+
+
+
+
+
+
+
+//automation 
+
+mport speech_recognition as sr
+import os
+import requests
+import AppKit
+import time
+import urllib.request
+import tkinter as tk
+import threading
+
+root_url = "http://192.168.123.1"
+city =  "Dharan"
+voice_identifier = 'com.apple.speech.synthesis.voice.karen'
+port = 80
+
+
+def speak(text_to_speak):
+        # Create an instance of NSSpeechSynthesizer
+        synthesizer = AppKit.NSSpeechSynthesizer.alloc().init()
+
+        # Set the desired voice using the voice identifier
+        synthesizer.setVoice_(voice_identifier)
+
+        #displaying the text
+        print(f"Assistant: {text_to_speak}")
+
+        # Speak the provided text
+        synthesizer.startSpeakingString_(text_to_speak)
+
+        # Wait for the speech to finish
+        while synthesizer.isSpeaking():
+            time.sleep(0.1)
+
+#================ IOT FUNCTIONS ================#
+def sendRequest(url):
+    n = urllib.request.urlopen(url)
+
+def turn_on_light():
+    sendRequest(root_url+"/ledon")
+    speak("Light turned on")
+
+def turn_off_light():
+    sendRequest(root_url+"/ledoff")
+    speak("Light turned off")
+
+def turn_off_fan():
+    sendRequest(root_url+"/fanoff")
+    speak("Fan turned off")
+
+def turn_on_fan():
+    sendRequest(root_url+"/fanon")
+    speak("Fan turned on")
+
+def shutdown():
+    speak("Disabiling voice functionality")
+    exit()
+
+def current_weather():
+        base_url = "http://api.openweathermap.org/data/2.5/weather?"
+        api_key = "a53ab8dbec0f35c840d8cc5ae5f1cd3b"
+        city = "Dharan"
+
+        url = base_url + "q=" + city + "&units=metric&APPID=" + api_key
+        try:
+            response = requests.get(url)
+            data = response.json()
+
+            if response.status_code == 200:
+                # Extract relevant information from the API response
+                temperature = data['main']['temp']
+                description = data['weather'][0]['description']
+
+                #print(f"Weather in {city}:")
+                #print(f"Temperature: {temperature}°C")
+                #print(f"Description: {description}")
+                speak(f"{city} has a temperature of {temperature} degree celcius and it is {description}")
+            else:
+                if 'message' in data:
+                    print(f"Error: {data['message']}")
+                else:
+                    print(f"Error: {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred: {e}")
+
+#=============  FOR GUI =============#
+class GreenHouseGUI:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Green House Monitoring and Automation System")
+
+        # Light Card
+        self.light_card = tk.Frame(self.master, padx=20, pady=20)
+        self.light_label = tk.Label(self.light_card, text="Light")
+        self.light_label.pack()
+
+        self.light_on_button = tk.Button(self.light_card, text="On", command=self.light_on)
+        self.light_on_button.pack(side=tk.LEFT, padx=5)
+        
+        self.light_off_button = tk.Button(self.light_card, text="Off", command=self.light_off)
+        self.light_off_button.pack(side=tk.LEFT, padx=5)
+
+        # Fan Card
+        self.fan_card = tk.Frame(self.master, padx=20, pady=20)
+        self.fan_label = tk.Label(self.fan_card, text="Fan")
+        self.fan_label.pack()
+
+        self.fan_on_button = tk.Button(self.fan_card, text="On", command=self.fan_on)
+        self.fan_on_button.pack(side=tk.LEFT, padx=5)
+        
+        self.fan_off_button = tk.Button(self.fan_card, text="Off", command=self.fan_off)
+        self.fan_off_button.pack(side=tk.LEFT, padx=5)
+
+        # Humidity Card
+        """self.humidity_card = tk.Frame(self.master, padx=20, pady=20)
+        self.humidity_label = tk.Label(self.humidity_card, text="Humidity")
+        self.humidity_label.pack()
+
+        self.humidity_value = tk.StringVar()
+        self.humidity_value_label = tk.Label(self.humidity_card, textvariable=self.humidity_value)
+        self.humidity_value_label.pack()"""
+
+        # Temperature Card
+        """self.temperature_card = tk.Frame(self.master, padx=20, pady=20)
+        self.temperature_label = tk.Label(self.temperature_card, text="Temperature")
+        self.temperature_label.pack()
+
+        self.temperature_value = tk.StringVar()
+        self.temperature_value_label = tk.Label(self.temperature_card, textvariable=self.temperature_value)
+        self.temperature_value_label.pack()"""
+
+        # Voice Control Card
+        self.voice_card = tk.Frame(self.master, padx=20, pady=20)
+        self.voice_label = tk.Label(self.voice_card, text="Voice Control")
+        self.voice_label.pack()
+
+        self.voice_button = tk.Button(self.voice_card, text="Start Voice Control", command=self.start_recognize_thread)
+        self.voice_button.pack(side=tk.LEFT, padx=10)
+
+
+        # Pack the cards
+        self.light_card.pack(side=tk.LEFT, padx=10)
+        self.fan_card.pack(side=tk.LEFT, padx=10)
+        #self.humidity_card.pack(side=tk.LEFT, padx=10)
+        #self.temperature_card.pack(side=tk.LEFT, padx=10)
+        self.voice_card.pack(side=tk.LEFT, padx=10)
+
+
+
+        # Update values initially
+        #self.update_values()
+
+    def light_on(self):
+        sendRequest(root_url + "/ledon")
+        print("Light turned on")
+
+    def light_off(self):
+        sendRequest(root_url + "/ledoff")
+        print("Light turned off")
+
+    def fan_on(self):
+        sendRequest(root_url + "/fanon")
+        print("Fan turned on")
+
+    def fan_off(self):
+        sendRequest(root_url + "/fanoff")
+        print("Fan turned off")
+
+    """def update_values(self):
+        try:
+            response = requests.get(f"{root_url}/get_data", timeout=10)
+            data = response.json()
+            temperature_value = data.get("temperature", "N/A")
+            humidity_value = data.get("humidity", "N/A")
+
+            self.temperature_value.set(f"Temperature: {temperature_value} °C")
+            self.humidity_value.set(f"Humidity: {humidity_value} %")
+
+        except requests.RequestException as e:
+            print(f"Error fetching data: {e}")
+            if isinstance(e, requests.ConnectionError) and "Connection reset by peer" in str(e):
+                # Retry after a brief delay
+                print("Retrying...")
+                self.master.after(1000, self.update_values)
+                return  # Skip scheduling the regular update
+
+            else:
+                # Log other exceptions and handle accordingly
+                pass
+
+        # Schedule the update every 5000 milliseconds (5 seconds)
+        self.master.after(5000, self.update_values)
+        """
+
+    def start_recognize_thread(self):
+        # Start a new thread for continuous speech recognition
+        threading.Thread(target=self.continuous_recognize_speech).start()
+
+    def continuous_recognize_speech(self):
+        while True:
+            self.recognize_speech()
+    
+    def recognize_speech(self):
+        # Initialize the recognizer
+        r = sr.Recognizer()
+
+        # Capture audio from the microphone
+        with sr.Microphone() as source:
+            r.energy_threshold = 700  #use 700
+            r.dynamic_energy_threshold = True
+            r.adjust_for_ambient_noise(source, duration=0.5)
+            r.pause_threshold = 0.5
+            print("Say something:")
+            audio = r.listen(source)
+            try:
+                # Recognize speech using Google Web Speech API
+                text = r.recognize_google(audio)
+                print(f"You: {text}")
+                #self.execute_command(text)
+                if "Jarvis" in text or "Hey buddy" in text:
+                    speak("Oh! Hello sir")
+                if "turn on light" in text or "turn on the light" in text or "light turn on" in text or "turn on light" in text:
+                    turn_on_light()
+                elif "turn off light" in text or "turn off the light" in text or "light turn off" in text or "turn off light" in text:
+                    turn_off_light()
+                elif "turn on fan" in text or "turn on the fan" in text or "fan turn on" in text or "turn on fan" in text:
+                    turn_on_fan()
+                elif "turn off fan" in text or "turn off the fan" in text or "fan turn off" in text or "turn off fan" in text:
+                    turn_off_fan()
+                elif "check weather" in text or "what's the weather" in text or "check the weather" in text:
+                    current_weather()
+                elif "shutdown" in text or "shut down" in text:
+                    speak("Disabling voice functionality")
+                    exit()
+                elif "how are you" in text or "how r u" in text:
+                    speak("I am fine Sir")
+                elif "thank you" in text or "thanks" in text:
+                    speak("It's my pleasure Sir")
+            except sr.UnknownValueError:
+                pass
+                #print("Sorry, I could not understand what you said.")
+            except sr.RequestError as e:
+                print("Error with the speech recognition service; {0}".format(e))
+
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = GreenHouseGUI(root)
+    root.mainloop()
+
+
+//nodemcu
+
+#include <ESP8266WiFi.h>
+#include <DHT.h>
+#define DHHTYPE DHT11
+WiFiClient client;  // client is a variable
+WiFiServer server(80);  // server is a variable. port 80 is the port that the server listens to
+#define Analog_pin A0
+int val=0;
+int Board_Resolution=1024;
+#define led D5 // 14
+#define fan D2
+#define dht_pin D1
+DHT dht(dht_pin, DHHTYPE);
+
+void setup() {
+  dht.begin();
+  pinMode(fan, OUTPUT);
+  digitalWrite(fan, LOW);
+  Serial.begin(9600);
+  WiFi.begin("X-Hack 2.0", "GoodLuck10");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print("0");
+    delay(300);
+  }
+  Serial.println(" ");
+  Serial.println("Wifi Conntection Succesful");
+  Serial.println(WiFi.localIP());
+  delay(3000);
+  server.begin();  // making the NodeMCU a server
+  pinMode(led, OUTPUT);
+}
+
+String prepareHtmlPage(float temp,float Humidity)
+{
+  String htmlPage;
+  htmlPage.reserve(1024);               // prevent ram fragmentation
+  htmlPage = F("HTTP/1.1 200 OK\r\n"
+               "Content-Type: text/html\r\n"
+               "Connection: close\r\n"  // the connection will be closed after completion of the response
+               "Refresh: 1\r\n"         // refresh the page automatically every 5 sec
+               "\r\n"
+               "<!DOCTYPE html>"
+"<html lang='en'>"
+"<head>"
+  "<meta charset='utf-8'>"
+  "<meta content='width=device-width, initial-scale=1.0' name='viewport'>"
+
+  "<title>Greem House Monitoring System</title>"
+  "<link href='https://fonts.gstatic.com' rel='preconnect'>"
+  "<link href='https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i' rel='stylesheet'>"
+  "<!-- Vendor CSS Files -->"
+  "<link href='https://premstha.com.np/assets/vendor/bootstrap/css/bootstrap.min.css' rel='stylesheet'>"
+  "<!-- Include Bootstrap Icons CSS -->"
+  "<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css'>"
+  "<link href='https://premstha.com.np/assets/vendor/quill/quill.snow.css' rel='stylesheet'>"
+  "<!-- Template Main CSS File -->"
+  "<link href='https://premstha.com.np/assets/css/dashboard-style.css' rel='stylesheet'>"
+"</head>"
+"<body>"
+  "<!-- ======= Header ======= -->"
+  "<header id='header' class='header fixed-top d-flex align-items-center'>"
+
+    "<div class='d-flex align-items-center justify-content-between'>"
+      "<a href='index.html' class='logo d-flex align-items-center'>"
+        "<img src='https://premstha.com.np/assets/img/logo.png' alt=''>"
+        "<span class='d-none d-lg-block'>PREMSTHA</span>"
+      "</a>"
+      "<i class='bi bi-list toggle-sidebar-btn'></i>"
+    "</div><!-- End Logo -->"
+
+      "</ul>"
+
+  "</header><!-- End Header -->"
+
+  "<!-- ======= Sidebar ======= -->"
+  "<aside id='sidebar' class='sidebar'>"
+
+    "<ul class='sidebar-nav' id='sidebar-nav'>"
+
+      "<li class='nav-item'>"
+        "<a class='nav-link' href='#'>"
+          "<i class='bi bi-grid'></i>"
+          "<span>Dashboard</span>"
+        "</a>"
+      "</li><!-- End Dashboard Nav -->"
+      "</ul>"
+
+  "</aside><!-- End Sidebar-->"
+
+  "<main id='main' class='main'>"
+
+    "<div class='pagetitle'>"
+      "<h1>Green House Monitoring and Automation System</h1>"
+    "</div><!-- End Page Title -->"
+
+    "<section class='section dashboard'>"
+      "<div class='row'>"
+      "<div class='col-lg-12'>"
+          "<div class='row'>"
+            "<!-- Light card -->"
+            "<div class='col-xxl-4 col-md-6'>"
+              "<div class='card info-card text-warning'>"
+                "<div class='card-body'>"
+                  "<h5 class='card-title'>Light</h5>"
+
+                  "<div class='d-flex align-items-center'>"
+                    "<div class='card-icon rounded-circle d-flex align-items-center justify-content-center'>"
+                      "<i class='bi bi-lightbulb'></i>"
+                    "</div>"
+                    "<div class='ps-3'>"
+                      "<h6 class='status'></h6>"
+                      "<a class='btn btn-success' href='./ledon' role='button'>ON</a>"
+                      "<a class='btn btn-danger' href='./ledoff' role='button'>OFF</a>"
+                    "</div>"
+                  "</div>"
+                "</div>"
+
+              "</div>"
+            "</div><!-- End light Card -->"
+            
+            "<!-- Light card -->"
+            "<div class='col-xxl-4 col-md-6'>"
+              "<div class='card info-card text-warning'>"
+                "<div class='card-body'>"
+                  "<h5 class='card-title'>Fan</h5>"
+
+                  "<div class='d-flex align-items-center'>"
+                    "<div class='card-icon rounded-circle d-flex align-items-center justify-content-center'>"
+                      "<i class='bi bi-fan'></i>"
+                    "</div>"
+                    "<div class='ps-3'>"
+                      "<h6 class='status'></h6>"
+                      "<a class='btn btn-success' href='/fanon' role='button'>ON</a>"
+                      "<a class='btn btn-danger' href='./fanoff' role='button'>OFF</a>"
+                    "</div>"
+                  "</div>"
+                "</div>"
+
+              "</div>"
+            "</div><!-- End light Card -->"
+          "</div>"
+        "</div>"
+
+        "<!-- Left side columns -->"
+        "<div class='col-lg-12'>"
+          "<div class='row'>"
+
+            "<!-- Temperature Card -->"
+            "<div class='col-xxl-4 col-md-6'>"
+              "<div class='card info-card sales-card'>"
+
+                "<div class='card-body'>"
+                  "<h5 class='card-title'>Temperature</h5>"
+
+                  "<div class='d-flex align-items-center'>"
+                    "<div class='card-icon rounded-circle d-flex align-items-center justify-content-center'>"
+                      "<i class='bi bi-thermometer'></i>"
+                    "</div>"
+                    "<div class='ps-3'>"
+                      "<h6>");
+                      htmlPage += String(temp);
+                      htmlPage += F(
+                      "</h6>"
+                    "</div>"
+                  "</div>"
+                "</div>"
+
+              "</div>"
+            "</div><!-- End Temperature Card -->"
+
+            "<!-- Humidity Card -->"
+            "<div class='col-xxl-4 col-md-6'>"
+              "<div class='card info-card sales-card'>"
+
+                "<div class='card-body'>"
+                  "<h5 class='card-title'>Humidity</h5>"
+
+                  "<div class='d-flex align-items-center'>"
+                    "<div class='card-icon rounded-circle d-flex align-items-center justify-content-center'>"
+                      "<i class='bi bi-thermometer'></i>"
+                    "</div>"
+                    "<div class='ps-3'>"
+                      "<h6>");
+                      htmlPage += String(Humidity);
+                      htmlPage += F("</h6>"
+                    "</div>"
+                  "</div>"
+                "</div>"
+
+              "</div>"
+            "</div><!-- End Humidity Card -->"
+
+//             "<!-- Reports -->"
+//             "<div class='col-12'>"
+//               "<div class='card'>"
+
+//                 "<div class='card-body'>"
+//                   "<h5 class='card-title'>Overall performance <span>/Today</span></h5>"
+//                   "<!-- Line Chart -->"
+//                   "<div id='reportsChart'></div>"
+//                   "<script>"
+//                   "document.addEventListener('DOMContentLoaded', () => {"
+//   "const dates = <?php echo json_encode($date_array); ?>;"
+//   "const percent = <?php echo json_encode($percent); ?>;"
+//   "const comPercent = <?php echo json_encode($com_percent); ?>;"
+
+//   "if (dates.length === 0) {"
+//     "var message = document.createElement('div');"
+//     "message.innerHTML = 'No items to display';"
+//     "message.style.fontSize = '18px';"
+//     "message.style.color = '#94a3b8';"
+//     "message.style.textAlign = 'center';"
+//     "document.querySelector('#reportsChart').appendChild(message);"
+//   "} else {"
+//     "const maxLabels = 7;"
+//     "const interval = Math.ceil(dates.length / maxLabels);"
+//     "let categories = dates.map((date, index) => (index % interval === 0 ? date : ''));"
+
+//     "new ApexCharts(document.querySelector('#reportsChart'), {"
+//       "series: ["
+//         "{ name: 'Your performance', data: percent },"
+//         "{ name: 'Your competitors performance', data: comPercent }"
+//       "],"
+//       "chart: {"
+//         "height: 350,"
+//         "type: 'area',"
+//         "toolbar: {"
+//           "show: false"
+//         "}"
+//       "},"
+//       "markers: {"
+//         "size: 4"
+//       "},"
+//       "colors: ['#2eca6a', '#4154f1'],"
+//       "fill: {"
+//         "type: 'gradient',"
+//         "gradient: {"
+//           "shadeIntensity: 1,"
+//           "opacityFrom: 0.3,"
+//           "opacityTo: 0.4,"
+//           "stops: [0, 90, 100]"
+//         "}"
+//       "},"
+//       "dataLabels: {"
+//         "enabled: 'false'"
+//       "},"
+//       "stroke: {"
+//         "curve: 'smooth',"
+//         "width: 2"
+//       "},"
+//       "xaxis: {"
+//         "type: 'category',"
+//         "categories: categories,"
+//         "labels: {"
+//           "show: true,"
+//           "rotate: -45,"
+//           "rotateAlways: false,"
+//           "hideOverlappingLabels: false,"
+//           "trim: false,"
+//           "minHeight: undefined,"
+//           "maxHeight: 120,"
+//           "style: {"
+//             "colors: [],"
+//             "fontSize: '12px',"
+//             "fontFamily: 'Helvetica, Arial, sans-serif',"
+//             "cssClass: 'apexcharts-xaxis-label',"
+//           "},"
+//         "}"
+//       "},"
+//       "yaxis: {"
+//         "labels: {"
+//           "formatter: function (value) {"
+//             "// Format the value to display with two decimal places"
+//             "return value.toFixed(2);"
+//           "}"
+//         "}"
+//       "},"
+//       "tooltip: {"
+//         "x: {"
+//           "format: 'dd/MM/yy HH:mm'"
+//         "}"
+//       "},"
+//       "noData: {"
+//         "text: 'No data to display. Try some practice sets, mock tests, etc. to see analytics',"
+//         "fontColor: '#ddd',"
+//         "fontSize: 18"
+//       "}"
+//     "}).render();"
+//   "}"
+// "});"
+//                   "</script>"
+//                   "<!-- End Line Chart -->"
+
+//                 "</div>"
+
+//               "</div>"
+//             "</div><!-- End Reports -->"
+          "</div>"
+        "</div><!-- End Left side columns -->"
+
+        "</div>"
+    "</section>"
+
+  "</main><!-- End #main -->"
+
+  "<!-- ======= Footer ======= -->"
+  "<footer id='footer' class='footer'>"
+    "<div class='copyright'>"
+      "&copy; Copyright <strong><span>IOEMENTOR</span></strong>. All Rights Reserved"
+    "</div>"
+  "</footer><!-- End Footer -->"
+
+  "<a href='#' class='back-to-top d-flex align-items-center justify-content-center'><i class='bi bi-arrow-up-short'></i></a>"
+
+  "<!-- Vendor JS Files -->"
+  "<script src='https://premstha.com.np/assets/vendor/apexcharts/apexcharts.min.js'></script>"
+  "<script src='https://premstha.com.np/assets/vendor/bootstrap/js/bootstrap.bundle.min.js'></script>"
+
+  "<script src='https://premstha.com.np/assets/vendor/echarts/echarts.min.js'></script>"
+  "<script src='https://premstha.com.np/assets/vendor/simple-datatables/simple-datatables.js'></script>"
+  "<script src='https://premstha.com.np/assets/vendor/tinymce/tinymce.min.js'></script>"
+
+  "<!-- Template Main JS File -->"
+  "<script src='https://premstha.com.np/assets/js/dashboard-main.js'></script>"
+
+"</body>"
+"<script src='https://code.jquery.com/jquery-3.6.0.min.js'></script>"
+"<div id='notifications'>"
+    "<!-- Notifications will be displayed here -->"
+"</div>"
+
+
+"</html>"
+  "\r\n");
+  return htmlPage;
+}
+
+void loop() {
+  val=analogRead(Analog_pin);
+  // float voltage=val;
+  //Serial.println("Serial Communication enabled");
+  Serial.println(val);
+  if(val<700){
+     digitalWrite(led, HIGH);
+  }
+  else{
+    digitalWrite(led, LOW);
+  }
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  Serial.print("Humidity = ");
+  Serial.print(h);
+  Serial.print("\n ");
+  Serial.print("Temperature = ");
+  Serial.print(t);
+  Serial.println("C \n \n \n ");
+  // delay(1000);
+  if(t > 21){
+      digitalWrite(fan, HIGH);
+    }
+    if(t<21){
+       digitalWrite(fan, LOW);
+    }
+  client = server.available();  // if available any client to the server, client becomes 1, and it means that the client has requested something.
+  if (client) {
+    String request = client.readStringUntil('\n');  // reading the request from the client
+    Serial.println(request);
+    request.trim();
+    if (request == "GET /ledon HTTP/1.1") {
+      digitalWrite(led, HIGH);
+    }
+    if (request == "GET /ledoff HTTP/1.1") {
+      digitalWrite(led, LOW);
+      exit(0);
+    }
+    if (request == "GET /fanon HTTP/1.1") {
+      digitalWrite(fan, HIGH);
+    }
+    
+    if (request == "GET /fanoff HTTP/1.1") {
+      digitalWrite(fan, LOW);
+      exit(0);
+    }
+    client.println(prepareHtmlPage(t,h));
+    client.stop();
+  }
+}
